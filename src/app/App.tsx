@@ -172,10 +172,13 @@ export default function App({ createLocal, createRemote, joinRemote, remoteConfi
   useEffect(()=>{window.scrollTo({top:0,behavior:'instant'});},[route]);
 
   useEffect(() => {
-    const match = location.hash.match(/(?:^#|&)invite=([^&]+)/);
-    if (!match?.[1]) return;
-    try { setInviteToken(decodeURIComponent(match[1])); setRoute('join'); history.replaceState(null, '', `${location.pathname}${location.search}`); }
-    catch { setError('초대 링크를 읽지 못했습니다. 링크를 다시 확인해 주세요.'); }
+    const consume=()=>{
+      const match = location.hash.match(/(?:^#|&)invite=([^&]+)/);
+      if (!match?.[1]) return;
+      try { setInviteToken(decodeURIComponent(match[1])); setRoute('join'); history.replaceState(null, '', `${location.pathname}${location.search}`); }
+      catch { setError('초대 링크를 읽지 못했습니다. 링크를 다시 확인해 주세요.'); }
+    };
+    consume();window.addEventListener('hashchange',consume);return()=>window.removeEventListener('hashchange',consume);
   }, []);
 
   const startParty = async (profile: Profile, photo: Blob | null, remote: boolean) => {
