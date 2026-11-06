@@ -89,8 +89,8 @@ export function mountCakeScene(canvas: HTMLCanvasElement, props: CakeSceneProps,
   scene.background = null;
   renderer.setClearColor(0x000000, 0);
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 80);
-  camera.position.set(1.65, 4.25, 4.45);
-  const cameraTarget = new THREE.Vector3(0, 2.85, 0);
+  camera.position.set(1.65, 4.0, 4.45);
+  const cameraTarget = new THREE.Vector3(0, 2.6, 0);
   camera.lookAt(cameraTarget);
   scene.add(new THREE.HemisphereLight('#fff1d9', '#211714', 0.48));
   const key = new THREE.SpotLight('#fff1df', 220, 18, Math.PI / 5, 0.7, 1.5);
@@ -238,7 +238,7 @@ export function mountCakeScene(canvas: HTMLCanvasElement, props: CakeSceneProps,
     const candleSpan = (rowCount - 1) * Math.min(0.27, 2.1 / Math.max(1, rowCount - 1)) + 0.3;
     const distance = camera.position.distanceTo(cameraTarget);
     const needed = 2 * Math.atan((candleSpan * 1.1) / (2 * distance * camera.aspect)) * 180 / Math.PI;
-    camera.fov = THREE.MathUtils.clamp(needed, 30, 52);
+    camera.fov = THREE.MathUtils.clamp(needed, 26, 52);
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
   };
@@ -259,7 +259,7 @@ export function mountCakeScene(canvas: HTMLCanvasElement, props: CakeSceneProps,
       const targetX = THREE.MathUtils.clamp(tilt?.x ?? 0, -1, 1) * 0.42;
       const targetZ = THREE.MathUtils.clamp(tilt?.y ?? 0, -1, 1) * 0.32;
       camera.position.x += (1.65 + targetX - camera.position.x) * 0.045;
-      camera.position.y += (4.25 + targetZ - camera.position.y) * 0.045;
+      camera.position.y += (4.0 + targetZ - camera.position.y) * 0.045;
       camera.lookAt(cameraTarget);
       const preparing = props.phase === 'preparing';
       const shake = props.jolt ? Math.sin(t * 34) * Math.exp(-t * 5) * 0.045 : 0;

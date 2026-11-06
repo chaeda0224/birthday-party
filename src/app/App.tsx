@@ -104,7 +104,7 @@ export function ProfileForm({
   const cropSource = prepared?.url ?? fileUrl;
 
   return <VStack as="section" className="party-panel profile-panel" gap={5}>
-    <header className="panel-heading"><Text className="eyebrow" type="label">축하 준비 서류</Text><Heading level={1}>{title}</Heading><Text type="supporting">표시 이름과 생일만 받습니다. 나이와 출생연도는 묻지 않습니다.</Text></header>
+    <header className="panel-heading"><Text className="eyebrow" type="label">축하 준비</Text><Heading level={1}>{title}</Heading><Text type="supporting">이름과 생일, 촛불을 골라 주세요. 출생연도는 필요하지 않습니다.</Text></header>
     <VStack as="form" className="profile-form" gap={4} onSubmit={submit}>
       <TextInput label="축하할 이름" value={profile.name} onChange={name => patchProfile({ name: limitText(name, 20) })} placeholder="축하할 이름" isRequired description="별칭도 괜찮습니다. 1~20자로 적어 주세요." />
       <fieldset className="field-group"><legend>생일 월과 일</legend><HStack className="date-fields" gap={3}>
@@ -169,6 +169,7 @@ export default function App({ createLocal, createRemote, joinRemote, remoteConfi
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  useEffect(()=>{window.scrollTo({top:0,behavior:'instant'});},[route]);
 
   useEffect(() => {
     const match = location.hash.match(/(?:^#|&)invite=([^&]+)/);

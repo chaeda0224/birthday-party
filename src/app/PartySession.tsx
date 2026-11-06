@@ -29,6 +29,7 @@ export default function PartySession({session,onLeave,invite}:{session:Session;o
   const stop=()=>{motion.current?.stop();mic.current?.stop();sound.current?.stop();gyro.current?.stop();setMicOn(false);setMotionOn(false);setGyroOn(false);};
   const ready=view.connected&&!s.paused&&s.phase!=='ended';
   const celebrating=s.phase==='celebrating'&&now>=(s.startAt??0)&&ready;
+  useEffect(()=>{window.scrollTo({top:0,behavior:'instant'});},[editing]);
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),150);return()=>clearInterval(timer);},[]);
   useEffect(()=>{let active=true;if(invite)void QRCode.toDataURL(invite,{margin:1,width:180,errorCorrectionLevel:'M'}).then(v=>{if(active)setQr(v);});return()=>{active=false;};},[invite]);
   useEffect(()=>{
@@ -49,6 +50,7 @@ export default function PartySession({session,onLeave,invite}:{session:Session;o
     void session.acknowledgeAudio('ready').catch(()=>undefined);
     const t=setInterval(()=>void session.acknowledgeAudio('ready').catch(()=>undefined),20000);return()=>clearInterval(t);
   },[soundOn,ready,s.audioId,s.phase,s.controlRevision,session,view.memberId]);
+  useEffect(()=>{if(ready&&s.phase==='blowing'&&s.audioId===view.memberId){sound.current?.stop();void session.acknowledgeAudio('stopped').catch(()=>undefined);}},[ready,s.phase,s.audioId,s.controlRevision,view.memberId,session]);
   useEffect(()=>{
     const key=s.roundId+':'+s.startAt;
     if(!celebrating||!soundOn||s.audioId!==view.memberId||handled.current.has(key))return;

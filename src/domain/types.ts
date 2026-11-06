@@ -34,4 +34,4 @@ export interface Session {
   end(): Promise<void>;
   dispose(): void;
 }
-export const RELEASE = { version: '0.1.1', date: '2026-11-06' } as const;
+export const RELEASE = { version: '0.1.2', date: '2026-11-06' } as const;

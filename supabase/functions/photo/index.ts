@@ -48,7 +48,7 @@ async function serviceRpc(fn: string, args: object) {
     body: JSON.stringify(args),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`BACKEND_${fn.toUpperCase()}`);
+  if (!response.ok) throw new Error(`BACKEND_${fn.toUpperCase()}_${String(payload.code ?? response.status).replace(/[^A-Z0-9_]/g,'')}`);
   return payload;
 }
 
@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "REQUEST_FAILED";
-    const code = /^[A-Z_]+$/.test(message) ? message : "REQUEST_FAILED";
+    const code = /^[A-Z0-9_]+$/.test(message) ? message : "REQUEST_FAILED";
     const status = code === "AUTH_REQUIRED" ? 401 : code === "UNSUPPORTED_IMAGE" ? 415 : code === "PAYLOAD_TOO_LARGE" ? 413 : code === "INVALID_REQUEST" ? 400 : 409;
     return reply({ code }, status);
   }

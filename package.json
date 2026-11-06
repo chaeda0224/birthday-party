@@ -1,6 +1,6 @@
 {
   "name": "birthday-party",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "node scripts/check-source.mjs",
     "test:unit": "tsx --test tests/*.test.ts",
-    "test:integration": "node --test tests/backend-contract.test.mjs",
+    "test:integration": "tsx --test tests/backend-runtime.test.ts",
     "test:e2e": "node scripts/e2e.mjs",
     "check:public": "node scripts/check-public.mjs",
     "preview": "vite preview --host 127.0.0.1"

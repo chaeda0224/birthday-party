@@ -28,9 +28,9 @@ function safeError(error: { message?: string } | null): Error {
   return Object.assign(new Error(key ? messages[key] : '연결이 원활하지 않아요. 잠시 후 다시 시도해 주세요.'), { code: key });
 }
 interface ResponseView { snapshot: Snapshot; profile: Profile | null; memberId?: string; isHost?: boolean; members?: SessionView['members']; inviteToken?: string }
-function normalizeSnapshot(snapshot: Snapshot): Snapshot {
+function normalizeSnapshot(snapshot: Snapshot, offset = 0): Snapshot {
   const time = (v: unknown) => typeof v === 'number' ? v : Date.parse(String(v));
-  return { ...snapshot, startAt: snapshot.startAt == null ? null : time(snapshot.startAt), expiresAt: time(snapshot.expiresAt), hostLeaseUntil: time(snapshot.hostLeaseUntil), audioLeaseUntil: snapshot.audioLeaseUntil == null ? null : time(snapshot.audioLeaseUntil), serverNow: snapshot.serverNow == null ? undefined : time(snapshot.serverNow) };
+  return { ...snapshot, startAt: snapshot.startAt == null ? null : time(snapshot.startAt)-offset, expiresAt: time(snapshot.expiresAt)-offset, hostLeaseUntil: time(snapshot.hostLeaseUntil)-offset, audioLeaseUntil: snapshot.audioLeaseUntil == null ? null : time(snapshot.audioLeaseUntil)-offset, serverNow: snapshot.serverNow == null ? undefined : time(snapshot.serverNow)-offset };
 }
 export class RemoteSession implements Session {
   readonly mode = 'remote' as const;
@@ -45,9 +45,13 @@ export class RemoteSession implements Session {
   private photoId: string | null = null;
   private photoRequest = 0;
   private lastInput = 0;
+  private clockOffset = 0;
+  private bestRoundTrip = Infinity;
   private photoRefresh?: ReturnType<typeof setTimeout>;
   constructor(private db: SupabaseClient, data: ResponseView, memberId: string) {
-    this.view = { snapshot: normalizeSnapshot(data.snapshot), profile: data.profile ? {...emptyProfile(),...data.profile} : null, memberId: data.memberId ?? memberId, isHost: data.isHost ?? data.snapshot.hostId === memberId, members: data.members ?? (data.snapshot as Snapshot & {members: SessionView['members']}).members ?? [], connected: true, photoUrl: null, error: null };
+    const serverTime=typeof data.snapshot.serverNow==='number'?data.snapshot.serverNow:Date.parse(String(data.snapshot.serverNow));
+    if(Number.isFinite(serverTime))this.clockOffset=serverTime-Date.now();
+    this.view = { snapshot: normalizeSnapshot(data.snapshot,this.clockOffset), profile: data.profile ? {...emptyProfile(),...data.profile} : null, memberId: data.memberId ?? memberId, isHost: data.isHost ?? data.snapshot.hostId === memberId, members: data.members ?? (data.snapshot as Snapshot & {members: SessionView['members']}).members ?? [], connected: true, photoUrl: null, error: null };
     this.poll = setInterval(() => { void this.refresh(); }, 5000);
     this.heartbeat = setInterval(() => { void this.beat(); this.checkExpiry(); }, 2000);
     this.channel = db.channel(`room:${data.snapshot.roomId}`, { config: { private: true } })
@@ -66,15 +70,19 @@ export class RemoteSession implements Session {
   private visibility = () => { if (document.hidden) this.update({ connected: false }); else void this.refresh(); };
   private apply(data: ResponseView | Snapshot) {
     if (this.disposed || this.ended) return;
-    const next = normalizeSnapshot('snapshot' in data ? data.snapshot : data);
+    const next = normalizeSnapshot('snapshot' in data ? data.snapshot : data,this.clockOffset);
     if (!next || next.revision < this.view.snapshot.revision) return;
     if (next.phase === 'ended') { this.terminal(); return; }
     this.update({ snapshot: next, members: (next as Snapshot & {members?: SessionView['members']}).members ?? this.view.members, ...('profile' in data ? { profile: data.profile ? {...emptyProfile(),...data.profile} : null, memberId: data.memberId ?? this.view.memberId, isHost: data.isHost ?? this.view.isHost } : {}), connected: true, error: null });
     if (this.view.profile?.photoId !== this.photoId) void this.refreshPhoto();
   }
   private async rpc(name: string, args: Record<string, unknown>) {
+    const sent=Date.now();
     const { data, error } = await this.db.rpc(name, args);
     if (error) { const e = safeError(error); if (['ROOM_ENDED', 'ROOM_EXPIRED', 'NOT_MEMBER'].includes((e as Error & {code:string}).code)) this.terminal(e.message); throw e; }
+    const received=Date.now(),candidate=data?.snapshot??data;
+    const serverTime=typeof candidate?.serverNow==='number'?candidate.serverNow:Date.parse(String(candidate?.serverNow));
+    if(Number.isFinite(serverTime)&&received-sent<this.bestRoundTrip){this.bestRoundTrip=received-sent;this.clockOffset=serverTime-(sent+received)/2;}
     return data;
   }
   async refresh() {
