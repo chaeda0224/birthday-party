@@ -1,5 +1,6 @@
 import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
 import { validateProfile } from '../domain/state';
+import { emptyProfile } from '../domain/state';
 import type { Command, Contribution, Profile, Session, SessionView, Snapshot } from '../domain/types';
 
 const projectUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
@@ -39,13 +40,14 @@ export class RemoteSession implements Session {
   private poll?: ReturnType<typeof setInterval>;
   private heartbeat?: ReturnType<typeof setInterval>;
   private disposed = false;
+  private ended = false;
   private syncBusy = false;
   private photoId: string | null = null;
   private photoRequest = 0;
   private lastInput = 0;
   private photoRefresh?: ReturnType<typeof setTimeout>;
   constructor(private db: SupabaseClient, data: ResponseView, memberId: string) {
-    this.view = { snapshot: normalizeSnapshot(data.snapshot), profile: data.profile, memberId: data.memberId ?? memberId, isHost: data.isHost ?? data.snapshot.hostId === memberId, members: data.members ?? (data.snapshot as Snapshot & {members: SessionView['members']}).members ?? [], connected: true, photoUrl: null, error: null };
+    this.view = { snapshot: normalizeSnapshot(data.snapshot), profile: data.profile ? {...emptyProfile(),...data.profile} : null, memberId: data.memberId ?? memberId, isHost: data.isHost ?? data.snapshot.hostId === memberId, members: data.members ?? (data.snapshot as Snapshot & {members: SessionView['members']}).members ?? [], connected: true, photoUrl: null, error: null };
     this.poll = setInterval(() => { void this.refresh(); }, 5000);
     this.heartbeat = setInterval(() => { void this.beat(); this.checkExpiry(); }, 2000);
     this.channel = db.channel(`room:${data.snapshot.roomId}`, { config: { private: true } })
@@ -63,10 +65,11 @@ export class RemoteSession implements Session {
   }
   private visibility = () => { if (document.hidden) this.update({ connected: false }); else void this.refresh(); };
   private apply(data: ResponseView | Snapshot) {
+    if (this.disposed || this.ended) return;
     const next = normalizeSnapshot('snapshot' in data ? data.snapshot : data);
     if (!next || next.revision < this.view.snapshot.revision) return;
     if (next.phase === 'ended') { this.terminal(); return; }
-    this.update({ snapshot: next, members: (next as Snapshot & {members?: SessionView['members']}).members ?? this.view.members, ...('profile' in data ? { profile: data.profile, memberId: data.memberId ?? this.view.memberId, isHost: data.isHost ?? this.view.isHost } : {}), connected: true, error: null });
+    this.update({ snapshot: next, members: (next as Snapshot & {members?: SessionView['members']}).members ?? this.view.members, ...('profile' in data ? { profile: data.profile ? {...emptyProfile(),...data.profile} : null, memberId: data.memberId ?? this.view.memberId, isHost: data.isHost ?? this.view.isHost } : {}), connected: true, error: null });
     if (this.view.profile?.photoId !== this.photoId) void this.refreshPhoto();
   }
   private async rpc(name: string, args: Record<string, unknown>) {
@@ -124,6 +127,7 @@ export class RemoteSession implements Session {
   async acknowledgeAudio(kind: 'ready' | 'stopped') { const s = this.view.snapshot; this.apply(await this.rpc('bp_role_ack', {p_room_id:s.roomId,p_member_id:this.view.memberId,p_role:'audio',p_kind:kind,p_round_id:s.roundId,p_control_revision:s.controlRevision,p_role_epoch:s.roleEpoch})); }
   async end() { await this.rpc('bp_end_room', { p_room_id: this.view.snapshot.roomId }); this.terminal(); }
   private terminal(error: string | null = null) {
+    this.ended = true;
     this.photoRequest++; clearTimeout(this.photoRefresh); clearInterval(this.poll); clearInterval(this.heartbeat);
     if (this.channel) void this.db.removeChannel(this.channel);
     this.update({ snapshot: { ...this.view.snapshot, phase: 'ended' }, profile: null, photoUrl: null, connected: false, error });

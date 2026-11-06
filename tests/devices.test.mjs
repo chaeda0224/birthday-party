@@ -85,14 +85,15 @@ test('high frequency energy ratio handles empty and zero energy', () => {
   assert.equal(analyseHighFrequencyRatio([1, 1, 2, 6], 2), 0.8);
 });
 
-test('blow decision requires loud, high frequency samples held long enough', () => {
+test('blow decision accepts band-limited phone breath but rejects brief noise and silence', () => {
   const calibration = createBlowCalibration([
     { rms: 0.01, highFrequencyRatio: 0.1 },
     { rms: 0.02, highFrequencyRatio: 0.2 },
   ]);
-  assert.equal(isBlowSample({ rms: 0.06, highFrequencyRatio: 0.4 }, calibration, 319), false);
-  assert.equal(isBlowSample({ rms: 0.06, highFrequencyRatio: 0.4 }, calibration, 320), true);
-  assert.equal(isBlowSample({ rms: 0.04, highFrequencyRatio: 0.4 }, calibration, 500), false);
+  assert.equal(isBlowSample({ rms: 0.06, highFrequencyRatio: 0.4 }, calibration, 159), false);
+  assert.equal(isBlowSample({ rms: 0.025, highFrequencyRatio: 0.12 }, calibration, 160), true);
+  assert.equal(isBlowSample({ rms: 0.06, highFrequencyRatio: 0.01 }, calibration, 500), true);
+  assert.equal(isBlowSample({ rms: 0.005, highFrequencyRatio: 0.4 }, calibration, 500), false);
 });
 
 test('motion magnitude rejects missing axes', () => {

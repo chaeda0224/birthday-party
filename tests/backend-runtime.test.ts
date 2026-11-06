@@ -21,6 +21,8 @@ test('Postgres migration and authorized room lifecycle (Supabase service stubs)'
     const sql = await readFile(new URL('../supabase/migrations/202611060001_birthday_party_backend.sql', import.meta.url), 'utf8');
     await db.exec(sql);
     await db.exec(await readFile(new URL('../supabase/migrations/202611060002_review_hardening.sql', import.meta.url), 'utf8'));
+    await db.exec(await readFile(new URL('../supabase/migrations/202611060003_candles_and_photos.sql', import.meta.url), 'utf8'));
+    await db.exec(await readFile(new URL('../supabase/migrations/202611060004_one_blow_for_everyone.sql', import.meta.url), 'utf8'));
     const host = crypto.randomUUID(); const guest = crypto.randomUUID(); const outsider = crypto.randomUUID();
     const identify = (id: string) => db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);
     await identify(host);
@@ -48,6 +50,11 @@ test('Postgres migration and authorized room lifecycle (Supabase service stubs)'
     const first=(await db.query<{result:any}>('select bp_contribute($1,$2,$3,$4,$5) result',args)).rows[0].result;
     const repeated=(await db.query<{result:any}>('select bp_contribute($1,$2,$3,$4,$5) result',args)).rows[0].result;
     assert.equal(first.wind,repeated.wind);
+    await db.exec("update bp_rooms set last_contribution_at=null");
+    await identify(guest);
+    const oneBlow=(await db.query<{result:any}>('select bp_contribute($1,$2,$3,$4,$5) result',[room,'blow',crypto.randomUUID(),s.roundId,s.controlRevision])).rows[0].result;
+    assert.equal(oneBlow.phase,'celebrating');assert.equal(oneBlow.wind,100);
+    await identify(host);
     await db.query('select bp_end_room($1)',[room]);
     await assert.rejects(db.query('select bp_snapshot($1)',[room]),/ROOM_ENDED|NOT_MEMBER/);
     assert.equal((await db.query<{n:number}>('select count(*)::int n from bp_profiles where room_id=$1',[room])).rows[0].n,0);

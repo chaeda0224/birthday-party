@@ -115,6 +115,10 @@ export function ProfileForm({
           {Array.from({ length: daysInMonth }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}일</option>)}
         </select></label>
       </HStack></fieldset>
+      <fieldset className="field-group"><legend>나이를 담은 촛불</legend><HStack gap={3}>
+        <label className="party-field">긴 촛불 · 10살<select value={profile.longCandles} onChange={e=>patchProfile({longCandles:Number(e.target.value)})}>{Array.from({length:13},(_,i)=><option key={i} value={i}>{i}개</option>)}</select></label>
+        <label className="party-field">짧은 촛불 · 1살<select value={profile.shortCandles} onChange={e=>patchProfile({shortCandles:Number(e.target.value)})}>{Array.from({length:10},(_,i)=><option key={i} value={i}>{i}개</option>)}</select></label>
+      </HStack><Text className="candle-age">{profile.longCandles*10+profile.shortCandles}살 · 총 {profile.longCandles+profile.shortCandles}개의 촛불</Text></fieldset>
       <fieldset className="field-group"><legend>호칭 연출</legend><HStack className="choice-row" gap={2} wrap="wrap">
         {(['common', 'male', 'female'] as Gender[]).map(gender => <Button key={gender} type="button" className="choice-button" variant={profile.gender === gender ? 'primary' : 'secondary'} aria-pressed={profile.gender === gender} label={gender === 'common' ? '공통 · 오늘의 주인공' : gender === 'male' ? '남성 · 생일왕' : '여성 · 생일여왕'} onClick={() => chooseGender(gender)} />)}
       </HStack>
@@ -131,6 +135,7 @@ export function ProfileForm({
         </HStack>
       </fieldset>
       <fieldset className="field-group photo-group"><legend>사진 토퍼 <span className="optional-note">선택</span></legend>
+        <label className="party-field">사진 위치<select value={profile.photoPlacement} onChange={e=>patchProfile({photoPlacement:e.target.value as Profile['photoPlacement']})}><option value="topper">케이크 위 토퍼</option><option value="background">검은 배경 전체</option><option value="both">토퍼와 배경 모두</option></select></label>
         <Text type="supporting">사진은 이 기기에서 원형으로 자릅니다. 함께 축하하는 방에서는 저장을 누를 때 참여자에게 공유됩니다.</Text>
         <label className="file-picker">사진 선택<input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => chooseFile(event.target.files?.[0] ?? null)} /></label>
         {cropSource && <section className="crop-workbench" aria-label="사진 자르기 미리보기">

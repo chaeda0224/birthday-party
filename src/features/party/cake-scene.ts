@@ -14,6 +14,7 @@ export type CakeSceneProps = {
   jolt?: boolean | number;
   longCandles?: number;
   shortCandles?: number;
+  tilt?: { x: number; y: number };
 };
 
 const palette: Record<Theme, { cake: string; glaze: string; berry: string }> = {
@@ -69,7 +70,7 @@ function makeTopperTexture(text: string, photoUrl: string | null, done: (texture
   return null;
 }
 
-export function mountCakeScene(canvas: HTMLCanvasElement, props: CakeSceneProps, onFallback: () => void) {
+export function mountCakeScene(canvas: HTMLCanvasElement, props: CakeSceneProps, onFallback: () => void, getTilt: () => CakeSceneProps['tilt'] = () => props.tilt) {
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
@@ -88,8 +89,9 @@ export function mountCakeScene(canvas: HTMLCanvasElement, props: CakeSceneProps,
   scene.background = null;
   renderer.setClearColor(0x000000, 0);
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 80);
-  camera.position.set(3.2, 5.7, 7.8);
-  camera.lookAt(0, 2.65, 0);
+  camera.position.set(1.65, 4.25, 4.45);
+  const cameraTarget = new THREE.Vector3(0, 2.85, 0);
+  camera.lookAt(cameraTarget);
   scene.add(new THREE.HemisphereLight('#fff1d9', '#211714', 0.48));
   const key = new THREE.SpotLight('#fff1df', 220, 18, Math.PI / 5, 0.7, 1.5);
   key.position.set(-3.7, 7.2, 4.2); key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
@@ -185,7 +187,7 @@ export function mountCakeScene(canvas: HTMLCanvasElement, props: CakeSceneProps,
   const total = Math.min(21, longCount + shortCount);
   const longTotal = Math.min(longCount, total);
   const shortTotal = total - longTotal;
-  const flames: { mesh: THREE.Mesh; geometry: THREE.PlaneGeometry; light: THREE.PointLight; seed: number; base: Float32Array }[] = [];
+  const flames: { mesh: THREE.Mesh; geometry: THREE.PlaneGeometry; light: THREE.PointLight; seed: number; base: Float32Array; x: number; z: number; tipY: number }[] = [];
   const flameCanvas = document.createElement('canvas');
   flameCanvas.width = 64; flameCanvas.height = 128;
   const flameCtx = flameCanvas.getContext('2d');
@@ -223,15 +225,27 @@ export function mountCakeScene(canvas: HTMLCanvasElement, props: CakeSceneProps,
     const flame = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ map: flameTexture, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
     flame.position.set(x, tipY + 0.25, z + 0.025); candleGroup.add(flame);
     const light = new THREE.PointLight('#ffba69', 1.5, 2.8, 2); light.position.set(x, tipY + 0.14, z); candleGroup.add(light);
-    flames.push({ mesh: flame, geometry, light, seed: def.i * 2.31 + (def.long ? 0 : 1.2), base });
+    flames.push({ mesh: flame, geometry, light, seed: def.i * 2.31 + (def.long ? 0 : 1.2), base, x, z, tipY });
   }
 
   let frame = 0;
   const clock = new THREE.Clock();
+  const fitCamera = () => {
+    const width = Math.max(1, canvas.clientWidth);
+    const height = Math.max(1, canvas.clientHeight);
+    camera.aspect = width / height;
+    const rowCount = Math.max(longTotal, shortTotal, 1);
+    const candleSpan = (rowCount - 1) * Math.min(0.27, 2.1 / Math.max(1, rowCount - 1)) + 0.3;
+    const distance = camera.position.distanceTo(cameraTarget);
+    const needed = 2 * Math.atan((candleSpan * 1.1) / (2 * distance * camera.aspect)) * 180 / Math.PI;
+    camera.fov = THREE.MathUtils.clamp(needed, 30, 52);
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height, false);
+  };
+  fitCamera();
   const resize = new ResizeObserver(() => {
     if (disposed) return;
-    const w = Math.max(1, canvas.clientWidth), h = Math.max(1, canvas.clientHeight);
-    camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h, false);
+    fitCamera();
   });
   resize.observe(canvas);
   const lost = (event: Event) => { event.preventDefault(); onFallback(); };
@@ -241,6 +255,12 @@ export function mountCakeScene(canvas: HTMLCanvasElement, props: CakeSceneProps,
     frame = requestAnimationFrame(animate);
     const t = clock.getElapsedTime();
     if (!props.reducedMotion) {
+      const tilt = getTilt();
+      const targetX = THREE.MathUtils.clamp(tilt?.x ?? 0, -1, 1) * 0.42;
+      const targetZ = THREE.MathUtils.clamp(tilt?.y ?? 0, -1, 1) * 0.32;
+      camera.position.x += (1.65 + targetX - camera.position.x) * 0.045;
+      camera.position.y += (4.25 + targetZ - camera.position.y) * 0.045;
+      camera.lookAt(cameraTarget);
       const preparing = props.phase === 'preparing';
       const shake = props.jolt ? Math.sin(t * 34) * Math.exp(-t * 5) * 0.045 : 0;
       cake.rotation.z = (preparing ? Math.sin(t * 2.4) * 0.012 : 0) + shake;
@@ -249,7 +269,10 @@ export function mountCakeScene(canvas: HTMLCanvasElement, props: CakeSceneProps,
         const positions = flame.geometry.attributes.position.array as Float32Array;
         for (let i = 0; i < positions.length; i += 3) {
           const y = flame.base[i + 1] + 0.25;
-          const bend = Math.max(0, y + 0.25) * (Math.sin(t * 5.7 + flame.seed) * 0.035 + Math.sin(t * 9.1 + flame.seed * 1.7) * 0.014);
+          const tilt = getTilt();
+          const tiltX = THREE.MathUtils.clamp(tilt?.x ?? 0, -1, 1) * 0.035;
+          const tiltY = THREE.MathUtils.clamp(tilt?.y ?? 0, -1, 1) * 0.028;
+          const bend = Math.max(0, y + 0.25) * (Math.sin(t * 5.7 + flame.seed) * 0.035 + Math.sin(t * 9.1 + flame.seed * 1.7) * 0.014 + tiltX + tiltY);
           positions[i] = flame.base[i] + bend;
         }
         flame.geometry.attributes.position.needsUpdate = true;

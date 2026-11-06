@@ -20,7 +20,7 @@ export function analyseRms(samples: ArrayLike<number>): number {
 
 export function analyseHighFrequencyRatio(
   bins: ArrayLike<number>,
-  minimumBin = Math.floor(bins.length * 0.55),
+  minimumBin = Math.floor(bins.length * 0.07),
 ): number {
   if (bins.length === 0) return 0;
   let total = 0;
@@ -36,7 +36,7 @@ export function analyseHighFrequencyRatio(
 export function createBlowCalibration(samples: readonly BlowSample[]): BlowCalibration {
   if (samples.length === 0) return { rms: 0, highFrequencyRatio: 0 };
   return {
-    rms: samples.reduce((sum, sample) => sum + sample.rms, 0) / samples.length,
+    rms: Math.min(0.012, [...samples].sort((a,b)=>a.rms-b.rms)[Math.floor(samples.length*0.2)]?.rms ?? 0),
     highFrequencyRatio:
       samples.reduce((sum, sample) => sum + sample.highFrequencyRatio, 0) / samples.length,
   };
@@ -48,9 +48,9 @@ export function isBlowSample(
   durationMs: number,
 ): boolean {
   return (
-    durationMs >= 320 &&
-    sample.rms >= Math.max(0.035, calibration.rms * 2.8) &&
-    sample.highFrequencyRatio >= Math.max(0.28, calibration.highFrequencyRatio + 0.08)
+    durationMs >= 160 &&
+    sample.rms >= Math.max(0.012, calibration.rms * 1.8) &&
+    (sample.highFrequencyRatio >= 0.06 || sample.rms >= 0.045)
   );
 }
 

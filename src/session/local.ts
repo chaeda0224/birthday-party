@@ -15,7 +15,7 @@ export class LocalSession implements Session {
     if (this.view.snapshot.phase === 'ended') throw new Error('종료된 파티입니다.');
     this.update({ profile: { ...validateProfile(profile), profileRevision: (this.view.profile?.profileRevision ?? 0) + 1 } });
   }
-  async setPhoto(blob: Blob | null) { if (this.view.photoUrl) URL.revokeObjectURL(this.view.photoUrl); this.update({ photoUrl: blob ? URL.createObjectURL(blob) : null }); }
+  async setPhoto(blob: Blob | null) { if (this.view.snapshot.phase==='ended') throw new Error('종료된 파티입니다.'); if (this.view.photoUrl) URL.revokeObjectURL(this.view.photoUrl); this.update({ photoUrl: blob ? URL.createObjectURL(blob) : null }); }
   async setRoles(micId: string | null, audioId: string | null) { this.update({ snapshot: { ...this.view.snapshot, micId, audioId } }); }
   async acknowledgeAudio(_kind: 'ready' | 'stopped') {}
   async end() { if (this.view.photoUrl) URL.revokeObjectURL(this.view.photoUrl); this.update({ profile: null, photoUrl: null, snapshot: { ...this.view.snapshot, phase: 'ended' } }); }

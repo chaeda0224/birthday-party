@@ -86,7 +86,7 @@ export function createBlowSensor(
 
       let acquired: MediaStream;
       try {
-        acquired = await mediaDevices.getUserMedia({ audio: true, video: false });
+        acquired = await mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: false });
       } catch (error) {
         if (currentGeneration !== generation) return;
         stop();
@@ -128,7 +128,7 @@ export function createBlowSensor(
             highFrequencyRatio: analyseHighFrequencyRatio(frequencyData),
           };
           const elapsed = performance.now() - calibrationStartedAt;
-          if (elapsed < 1000) {
+          if (elapsed < 350) {
             calibrationSamples.push(sample);
             onLevel?.(sample.rms);
             return;
@@ -136,9 +136,9 @@ export function createBlowSensor(
           const calibration = createBlowCalibration(calibrationSamples);
           onLevel?.(sample.rms);
           const now = performance.now();
-          if (isBlowSample(sample, calibration, 320)) {
+          if (isBlowSample(sample, calibration, 160)) {
             if (loudStartedAt === null) loudStartedAt = performance.now();
-            if (now - loudStartedAt >= 320 && now - lastBlowAt >= 750) {
+            if (now - loudStartedAt >= 160 && now - lastBlowAt >= 750) {
               lastBlowAt = now;
               onBlow();
             }

@@ -4,7 +4,7 @@ export const presets: Record<Gender, { honorific: string; message: string }> = {
   male: { honorific: '생일왕', message: '생일왕의 등장을 허가합니다.' },
   female: { honorific: '생일여왕', message: '생일여왕의 등장을 허가합니다.' },
 };
-export const emptyProfile = (): Profile => ({ name: '', month: 1, day: 1, gender: 'common', ...presets.common, theme: 'strawberry', decoration: 'crown', photoId: null, profileRevision: 0 });
+export const emptyProfile = (): Profile => ({ name: '', month: 1, day: 1, gender: 'common', ...presets.common, theme: 'strawberry', decoration: 'none', photoId: null, profileRevision: 0, longCandles: 0, shortCandles: 5, photoPlacement:'topper' });
 export function validateProfile(input: Profile): Profile {
   const p = { ...input, name: input.name.trim(), honorific: input.honorific.trim(), message: input.message.trim() };
   if ([...p.name].length < 1 || [...p.name].length > 20) throw new Error('이름은 1~20자로 입력해 주세요.');
@@ -12,6 +12,8 @@ export function validateProfile(input: Profile): Profile {
   const days = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   if (!Number.isInteger(p.month) || !Number.isInteger(p.day) || p.month < 1 || p.month > 12 || p.day < 1 || p.day > days[p.month - 1]) throw new Error('생일의 월과 일을 확인해 주세요.');
   if (!['common', 'male', 'female'].includes(p.gender) || !['strawberry', 'mint', 'chocolate'].includes(p.theme) || !['crown', 'ribbon', 'none'].includes(p.decoration)) throw new Error('선택 항목을 확인해 주세요.');
+  if (!Number.isInteger(p.longCandles)||p.longCandles<0||p.longCandles>12||!Number.isInteger(p.shortCandles)||p.shortCandles<0||p.shortCandles>9||p.longCandles+p.shortCandles<1) throw new Error('긴 촛불은 0~12개, 짧은 촛불은 0~9개로 골라 주세요. 최소 한 개가 필요합니다.');
+  if (!['topper','background','both'].includes(p.photoPlacement)) throw new Error('사진 위치를 선택해 주세요.');
   return p;
 }
 export function initialSnapshot(): Snapshot {
@@ -35,7 +37,7 @@ export function contribute(s: Snapshot, kind: Contribution, now = Date.now()): S
   if (s.paused || s.phase === 'ended' || now >= s.expiresAt) return s;
   if (s.phase === 'preparing' && (kind === 'shake' || kind === 'button')) return { ...s, revision: s.revision + 1, charge: Math.min(100, s.charge + 12) };
   if (s.phase === 'blowing' && (kind === 'blow' || kind === 'button')) {
-    const wind = Math.min(100, s.wind + 20);
+    const wind = kind==='blow'?100:Math.min(100, s.wind + 20);
     return { ...s, revision: s.revision + 1, wind, ...(wind >= 100 ? { phase: 'celebrating' as const, startAt: now + 1800 } : {}) };
   }
   return s;

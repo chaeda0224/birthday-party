@@ -12,6 +12,7 @@ type CakeProps = {
   reducedMotion: boolean;
   longCandles?: number;
   shortCandles?: number;
+  tilt?: { x: number; y: number };
 };
 
 const colors: Record<Theme, { icing: string; cake: string; berry: string }> = {

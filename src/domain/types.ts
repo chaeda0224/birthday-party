@@ -5,6 +5,7 @@ export type Decoration = 'crown' | 'ribbon' | 'none';
 export interface Profile {
   name: string; month: number; day: number; gender: Gender; honorific: string; message: string;
   theme: Theme; decoration: Decoration; photoId: string | null; profileRevision: number;
+  longCandles: number; shortCandles: number; photoPlacement: 'topper' | 'background' | 'both';
 }
 export interface Snapshot {
   roomId: string; roundId: string; revision: number; controlRevision: number; phase: Phase;
@@ -33,4 +34,4 @@ export interface Session {
   end(): Promise<void>;
   dispose(): void;
 }
-export const RELEASE = { version: '0.1.0', date: '2026-11-06' } as const;
+export const RELEASE = { version: '0.1.1', date: '2026-11-06' } as const;
