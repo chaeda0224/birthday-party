@@ -1,0 +1,11 @@
+[api]
+enabled = true
+schemas = ["public", "storage"]
+extra_search_path = ["public", "extensions"]
+max_rows = 100
+
+[db]
+major_version = 15
+
+[functions.photo]
+verify_jwt = false
